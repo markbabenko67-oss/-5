@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
 
     private static final String GEMINI_API_KEY = "AQ.Ab8RN6JVfB7YA5H3w7yiD5HxUyhxaIsUvZYcKDi5bbvbl_vnLA";
-    private static final String GEMINI_MODEL = "gemini-2.0-flash";
+    private static final String GEMINI_MODEL = "gemini-3.6-flash";
 
     private static final int REQ_CAMERA = 101;
     private static final int REQ_GALLERY = 102;
