@@ -229,10 +229,11 @@ public class MainActivity extends Activity {
         }
 
         URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/"
-                + GEMINI_MODEL + ":generateContent?key=" + GEMINI_API_KEY);
+                + GEMINI_MODEL + ":generateContent");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("x-goog-api-key", GEMINI_API_KEY);
         conn.setConnectTimeout(30000);
         conn.setReadTimeout(120000);
         conn.setDoOutput(true);
