@@ -91,5 +91,48 @@
             android:textSize="15sp"
             android:lineSpacingExtra="3dp"
             android:background="@drawable/btn_secondary" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Локальная модель (рецепты без интернета)"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#1B5E20" />
+
+        <EditText
+            android:id="@+id/etToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="Токен Hugging Face"
+            android:inputType="textVisiblePassword"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btnDownload"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Скачать модель (3,66 ГБ) один раз"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:background="@drawable/btn_primary" />
+
+        <ProgressBar
+            android:id="@+id/pbModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            style="?android:attr/progressBarStyleHorizontal" />
+
+        <TextView
+            android:id="@+id/tvModelStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp" />
     </LinearLayout>
 </ScrollView>

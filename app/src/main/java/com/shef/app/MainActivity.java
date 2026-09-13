@@ -3,6 +3,7 @@ package com.shef.app;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
@@ -15,6 +16,7 @@ import android.text.Html;
 import android.util.Base64;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -33,6 +35,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,6 +55,12 @@ public class MainActivity extends Activity {
     private ProgressBar progress;
     private TextView tvResult;
 
+    private LocalChef localChef;
+    private EditText etToken;
+    private Button btnDownload;
+    private ProgressBar pbModel;
+    private TextView tvModelStatus;
+
     private Uri pendingPhotoUri;
     private byte[] imageBytes;
 
@@ -67,9 +76,19 @@ public class MainActivity extends Activity {
         progress = findViewById(R.id.progress);
         tvResult = findViewById(R.id.tvResult);
 
+        etToken = findViewById(R.id.etToken);
+        btnDownload = findViewById(R.id.btnDownload);
+        pbModel = findViewById(R.id.pbModel);
+        tvModelStatus = findViewById(R.id.tvModelStatus);
+
         btnCamera.setOnClickListener(v -> launchCamera());
         btnGallery.setOnClickListener(v -> launchGallery());
         btnAsk.setOnClickListener(v -> askChef());
+
+        localChef = new LocalChef(this);
+        etToken.setText(loadToken());
+        btnDownload.setOnClickListener(v -> startModelDownload());
+        updateModelStatus();
     }
 
     private void launchCamera() {
@@ -179,6 +198,11 @@ public class MainActivity extends Activity {
             return;
         }
 
+        if (localChef.isModelPresent()) {
+            askLocalChef();
+            return;
+        }
+
         btnAsk.setEnabled(false);
         progress.setVisibility(View.VISIBLE);
         tvResult.setText("");
@@ -197,6 +221,120 @@ public class MainActivity extends Activity {
                 tvResult.setText(Html.fromHtml(finalResult, Html.FROM_HTML_MODE_LEGACY));
             });
         });
+    }
+
+    private void askLocalChef() {
+        final byte[] photo = imageBytes;
+        btnAsk.setEnabled(false);
+        progress.setVisibility(View.VISIBLE);
+        progress.setIndeterminate(true);
+        tvResult.setText("Шеф думает на телефоне...");
+
+        localChef.clearEngineError();
+        localChef.generateRecipe(loadRawResourceSafe(), photo, new LocalChef.Callback() {
+            @Override
+            public void onResult(String text) {
+                runOnUiThread(() -> {
+                    progress.setVisibility(View.GONE);
+                    btnAsk.setEnabled(true);
+                    tvResult.setText(Html.fromHtml(markdownToHtml(text), Html.FROM_HTML_MODE_LEGACY));
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> {
+                    progress.setVisibility(View.GONE);
+                    btnAsk.setEnabled(true);
+                    tvResult.setText(message);
+                });
+            }
+        });
+    }
+
+    private String loadRawResourceSafe() {
+        try {
+            return loadRawResource(R.raw.chef_prompt);
+        } catch (Exception e) {
+            return "Ты шеф-повар. Предложи 3 рецепта из продуктов на фото.";
+        }
+    }
+
+    private void startModelDownload() {
+        String token = etToken.getText().toString().trim();
+        if (token.isEmpty()) {
+            Toast.makeText(this, "Вставь токен Hugging Face", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (localChef.isModelPresent()) {
+            Toast.makeText(this, "Модель уже скачана", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        long space = localChef.getUsableSpace();
+        if (space < LocalChef.MODEL_SIZE_BYTES + 512L * 1024 * 1024) {
+            Toast.makeText(this, "Мало места на телефоне для модели (нужно ~3,9 ГБ)", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        saveToken(token);
+        btnDownload.setEnabled(false);
+        pbModel.setVisibility(View.VISIBLE);
+        tvModelStatus.setText("Загрузка 3,66 ГБ. Не закрывай приложение — это займёт время.");
+
+        localChef.downloadModel(token, new LocalChef.ProgressListener() {
+            @Override
+            public void onProgress(long done, long total) {
+                runOnUiThread(() -> {
+                    pbModel.setMax(1000);
+                    pbModel.setProgress((int) (done * 1000 / total));
+                    long pct = done * 100 / total;
+                    tvModelStatus.setText(String.format(Locale.getDefault(),
+                            "Скачано %d%% (%d из %d МБ)",
+                            pct, done / (1024 * 1024), total / (1024 * 1024)));
+                });
+            }
+
+            @Override
+            public void onDone() {
+                runOnUiThread(() -> {
+                    pbModel.setVisibility(View.GONE);
+                    btnDownload.setEnabled(true);
+                    updateModelStatus();
+                    Toast.makeText(MainActivity.this, "Локальная модель готова! Можно готовить без интернета.", Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> {
+                    updateModelStatus();
+                    pbModel.setVisibility(View.GONE);
+                    btnDownload.setEnabled(true);
+                    tvModelStatus.setText("Ошибка: " + message);
+                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void updateModelStatus() {
+        if (localChef.isModelPresent()) {
+            tvModelStatus.setText("Локальная модель: готова (рецепты считаются на телефоне, без интернета).");
+        } else if (localChef.isDownloading()) {
+            tvModelStatus.setText("Идёт загрузка локальной модели...");
+        } else {
+            tvModelStatus.setText("Локальная модель не скачана — сейчас рецепты считает Gemini через интернет.");
+        }
+    }
+
+    private void saveToken(String token) {
+        SharedPreferences prefs = getSharedPreferences("shef", MODE_PRIVATE);
+        prefs.edit().putString("hf_token", token).apply();
+    }
+
+    private String loadToken() {
+        SharedPreferences prefs = getSharedPreferences("shef", MODE_PRIVATE);
+        return prefs.getString("hf_token", "");
     }
 
     private String callGemini() throws IOException {
