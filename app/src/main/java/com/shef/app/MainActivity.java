@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
 
     private static final int REQ_CAMERA = 101;
     private static final int REQ_GALLERY = 102;
+    private static final int REQ_PICK_MODEL = 103;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -58,6 +59,7 @@ public class MainActivity extends Activity {
     private LocalChef localChef;
     private EditText etToken;
     private Button btnDownload;
+    private Button btnPickModel;
     private ProgressBar pbModel;
     private TextView tvModelStatus;
 
@@ -78,6 +80,7 @@ public class MainActivity extends Activity {
 
         etToken = findViewById(R.id.etToken);
         btnDownload = findViewById(R.id.btnDownload);
+        btnPickModel = findViewById(R.id.btnPickModel);
         pbModel = findViewById(R.id.pbModel);
         tvModelStatus = findViewById(R.id.tvModelStatus);
 
@@ -88,6 +91,7 @@ public class MainActivity extends Activity {
         localChef = new LocalChef(this);
         etToken.setText(loadToken());
         btnDownload.setOnClickListener(v -> startModelDownload());
+        btnPickModel.setOnClickListener(v -> launchModelPicker());
         updateModelStatus();
     }
 
@@ -123,14 +127,79 @@ public class MainActivity extends Activity {
         if (resultCode != RESULT_OK) return;
 
         try {
-            if (requestCode == REQ_CAMERA && pendingPhotoUri != null) {
+            if (requestCode == REQ_PICK_MODEL && data != null && data.getData() != null) {
+                importModelFile(data.getData());
+            } else if (requestCode == REQ_CAMERA && pendingPhotoUri != null) {
                 loadAndPreview(pendingPhotoUri, true);
             } else if (requestCode == REQ_GALLERY && data != null && data.getData() != null) {
                 loadAndPreview(data.getData(), false);
             }
         } catch (Exception e) {
-            Toast.makeText(this, "Не удалось прочитать фото: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Не удалось прочитать файл: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void launchModelPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        try {
+            startActivityForResult(intent, REQ_PICK_MODEL);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "Не удалось открыть выбор файла", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void importModelFile(Uri uri) {
+        if (localChef.isModelPresent()) {
+            Toast.makeText(this, "Модель уже на месте", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        btnDownload.setEnabled(false);
+        btnPickModel.setEnabled(false);
+        pbModel.setVisibility(View.VISIBLE);
+        tvModelStatus.setText("Перенос файла модели на место. Подожди...");
+
+        localChef.importModel(uri, new LocalChef.ProgressListener() {
+            @Override
+            public void onProgress(long done, long total) {
+                runOnUiThread(() -> {
+                    if (total > 0) {
+                        pbModel.setMax(1000);
+                        pbModel.setProgress((int) (done * 1000 / total));
+                        tvModelStatus.setText(String.format(Locale.getDefault(),
+                                "Перенос: %d%% (%d из %d МБ)",
+                                done * 100 / total, done / (1024 * 1024), total / (1024 * 1024)));
+                    } else {
+                        tvModelStatus.setText(String.format(Locale.getDefault(),
+                                "Перенос: %d МБ...", done / (1024 * 1024)));
+                    }
+                });
+            }
+
+            @Override
+            public void onDone() {
+                runOnUiThread(() -> {
+                    pbModel.setVisibility(View.GONE);
+                    btnDownload.setEnabled(true);
+                    btnPickModel.setEnabled(true);
+                    updateModelStatus();
+                    Toast.makeText(MainActivity.this, "Модель установлена! Можно готовить без интернета.", Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> {
+                    updateModelStatus();
+                    pbModel.setVisibility(View.GONE);
+                    btnDownload.setEnabled(true);
+                    btnPickModel.setEnabled(true);
+                    tvModelStatus.setText("Ошибка: " + message);
+                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void loadAndPreview(Uri uri, boolean fixOrientation) throws IOException {

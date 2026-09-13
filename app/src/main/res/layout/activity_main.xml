@@ -120,6 +120,15 @@
             android:textAllCaps="false"
             android:background="@drawable/btn_primary" />
 
+        <Button
+            android:id="@+id/btnPickModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Выбрать модель с устройства (файл из Загрузок)"
+            android:textAllCaps="false"
+            android:background="@drawable/btn_secondary" />
+
         <ProgressBar
             android:id="@+id/pbModel"
             android:layout_width="match_parent"

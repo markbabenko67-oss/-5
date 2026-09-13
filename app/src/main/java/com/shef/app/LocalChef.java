@@ -148,6 +148,62 @@ public final class LocalChef {
         });
     }
 
+    public void importModel(final android.net.Uri uri, final ProgressListener listener) {
+        if (downloading) {
+            listener.onError("Уже идёт перенос или загрузка модели");
+            return;
+        }
+        downloading = true;
+        executor.submit(() -> {
+            FileOutputStream out = null;
+            InputStream in = null;
+            try {
+                File modelsDir = new File(context.getFilesDir(), "models");
+                if (!modelsDir.exists() && !modelsDir.mkdirs()) {
+                    throw new IOException("Не удалось создать папку для модели");
+                }
+                File part = new File(modelsDir, MODEL_FILE + ".part");
+                in = context.getContentResolver().openInputStream(uri);
+                if (in == null) {
+                    throw new IOException("Не удалось открыть выбранный файл");
+                }
+                out = new FileOutputStream(part, false);
+                byte[] buffer = new byte[64 * 1024];
+                long total = 0;
+                long lastNotify = System.currentTimeMillis();
+                int n;
+                while ((n = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, n);
+                    total += n;
+                    long now = System.currentTimeMillis();
+                    if (now - lastNotify > 250) {
+                        lastNotify = now;
+                        listener.onProgress(total, -1);
+                    }
+                }
+                out.flush();
+                out.close();
+                in.close();
+                out = null;
+                in = null;
+
+                if (total != MODEL_SIZE_BYTES) {
+                    part.delete();
+                    throw new IOException("Размер файла не совпадает: " + total + " байт вместо " + MODEL_SIZE_BYTES + ". Убедись, что это файл gemma-3n-E2B-it-int4.litertlm (3,66 ГБ).");
+                }
+                File target = getModelFile();
+                if (target.exists()) target.delete();
+                if (!part.renameTo(target)) {
+                    throw new IOException("Не удалось сохранить модель в папке приложения");
+                }
+                listener.onDone();
+            } catch (Throwable t) {
+                downloading = false;
+                listener.onError(t.getMessage() != null ? t.getMessage() : t.toString());
+            }
+        });
+    }
+
     public void generateRecipe(final String systemPrompt, final byte[] imageJpeg, final Callback cb) {
         executor.submit(() -> {
             try {
