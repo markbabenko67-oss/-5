@@ -215,7 +215,7 @@ public final class LocalChef {
                 EngineConfig cfg = new EngineConfig(
                         getModelFile().getAbsolutePath(),
                         new Backend.CPU(),
-                        new Backend.CPU(),
+                        new Backend.GPU(),
                         new Backend.CPU(),
                         MAX_TOKENS,
                         1,
