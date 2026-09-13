@@ -271,15 +271,13 @@ public class MainActivity extends Activity {
             return;
         }
         long space = localChef.getUsableSpace();
-        if (space < LocalChef.MODEL_SIZE_BYTES + 512L * 1024 * 1024) {
-            Toast.makeText(this, "Мало места на телефоне для модели (нужно ~3,9 ГБ)", Toast.LENGTH_LONG).show();
-            return;
-        }
+        tvModelStatus.setText(String.format(Locale.getDefault(),
+                "Свободно места: ~%d ГБ из %d МБ. Загрузка 3,66 ГБ, не закрывай приложение.",
+                space / (1024L * 1024 * 1024), LocalChef.MODEL_SIZE_BYTES / (1024L * 1024)));
 
         saveToken(token);
         btnDownload.setEnabled(false);
         pbModel.setVisibility(View.VISIBLE);
-        tvModelStatus.setText("Загрузка 3,66 ГБ. Не закрывай приложение — это займёт время.");
 
         localChef.downloadModel(token, new LocalChef.ProgressListener() {
             @Override
