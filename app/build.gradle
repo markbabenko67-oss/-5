@@ -3,8 +3,9 @@ plugins {
 }
 
 def localProps = new Properties()
-if (file("local.properties").exists()) {
-    file("local.properties").withInputStream { localProps.load(it) }
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
 }
 
 android {
