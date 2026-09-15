@@ -29,6 +29,10 @@ jobs:
       - name: Clean Gradle caches
         run: rm -rf ~/.gradle/caches ~/.gradle/wrapper
 
+      - name: Inject Gemini API key
+        if: ${{ secrets.GEMINI_API_KEY != '' }}
+        run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> local.properties
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
 

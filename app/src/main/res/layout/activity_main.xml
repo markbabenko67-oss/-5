@@ -110,6 +110,15 @@
             android:inputType="textVisiblePassword"
             android:textSize="14sp" />
 
+        <EditText
+            android:id="@+id/etGeminiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="Ключ Gemini (для облачной генерации)"
+            android:inputType="textPassword"
+            android:textSize="14sp" />
+
         <Button
             android:id="@+id/btnDownload"
             android:layout_width="match_parent"

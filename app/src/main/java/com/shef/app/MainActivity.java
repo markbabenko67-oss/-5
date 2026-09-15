@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Scanner;
@@ -42,7 +43,6 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
 
-    private static final String GEMINI_API_KEY = "AQ.Ab8RN6KfSZO8agMXmL87Eoc9WncO6gp0GS192eZP3w2MQwu5nA";
     private static final String GEMINI_MODEL = "gemini-3.6-flash";
 
     private static final int REQ_CAMERA = 101;
@@ -58,6 +58,7 @@ public class MainActivity extends Activity {
 
     private LocalChef localChef;
     private EditText etToken;
+    private EditText etGeminiKey;
     private Button btnDownload;
     private Button btnPickModel;
     private ProgressBar pbModel;
@@ -79,6 +80,7 @@ public class MainActivity extends Activity {
         tvResult = findViewById(R.id.tvResult);
 
         etToken = findViewById(R.id.etToken);
+        etGeminiKey = findViewById(R.id.etGeminiKey);
         btnDownload = findViewById(R.id.btnDownload);
         btnPickModel = findViewById(R.id.btnPickModel);
         pbModel = findViewById(R.id.pbModel);
@@ -89,7 +91,8 @@ public class MainActivity extends Activity {
         btnAsk.setOnClickListener(v -> askChef());
 
         localChef = new LocalChef(this);
-        etToken.setText(loadToken());
+        etToken.setText(loadPref("hf_token"));
+        etGeminiKey.setText(loadPref("gemini_key"));
         btnDownload.setOnClickListener(v -> startModelDownload());
         btnPickModel.setOnClickListener(v -> launchModelPicker());
         updateModelStatus();
@@ -344,7 +347,7 @@ public class MainActivity extends Activity {
                 "Свободно места: ~%d ГБ из %d МБ. Загрузка 3,66 ГБ, не закрывай приложение.",
                 space / (1024L * 1024 * 1024), LocalChef.MODEL_SIZE_BYTES / (1024L * 1024)));
 
-        saveToken(token);
+        savePref("hf_token", token);
         btnDownload.setEnabled(false);
         pbModel.setVisibility(View.VISIBLE);
 
@@ -394,17 +397,30 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void saveToken(String token) {
+    private void savePref(String key, String value) {
         SharedPreferences prefs = getSharedPreferences("shef", MODE_PRIVATE);
-        prefs.edit().putString("hf_token", token).apply();
+        prefs.edit().putString(key, value).apply();
     }
 
-    private String loadToken() {
+    private String loadPref(String key) {
         SharedPreferences prefs = getSharedPreferences("shef", MODE_PRIVATE);
-        return prefs.getString("hf_token", "");
+        return prefs.getString(key, "");
+    }
+
+    private String geminiKey() {
+        String fromPref = etGeminiKey != null ? etGeminiKey.getText().toString().trim() : "";
+        if (!fromPref.isEmpty()) {
+            savePref("gemini_key", fromPref);
+            return fromPref;
+        }
+        return BuildConfig.GEMINI_API_KEY;
     }
 
     private String callGemini() throws IOException {
+        String apiKey = geminiKey();
+        if (apiKey.isEmpty()) {
+            throw new IOException("Ключ Gemini не задан: введи его в поле 'Ключ Gemini' в приложении");
+        }
         String prompt = loadRawResource(R.raw.chef_prompt);
 
         JSONObject inlineData = new JSONObject();
@@ -434,11 +450,11 @@ public class MainActivity extends Activity {
         }
 
         URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/"
-                + GEMINI_MODEL + ":generateContent");
+                + GEMINI_MODEL + ":generateContent?key="
+                + URLEncoder.encode(apiKey, "UTF-8"));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("x-goog-api-key", GEMINI_API_KEY);
         conn.setConnectTimeout(30000);
         conn.setReadTimeout(120000);
         conn.setDoOutput(true);
