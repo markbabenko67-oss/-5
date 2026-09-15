@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Холодильник-шеф</string>
+    <string name="main_hint">Сфотографируй холодильник или стол с продуктами — шеф-повар подскажет, что вкусного приготовить.</string>
+    <string name="btn_camera">Снять фото</string>
+    <string name="btn_gallery">Из галереи</string>
+    <string name="btn_ask">Что приготовить?</string>
+    <string name="btn_save_recipe">Сохранить рецепт</string>
+    <string name="btn_settings">Настройки ИИ</string>
+    <string name="settings_title">Настройки и нейронка</string>
+    <string name="btn_back">Назад</string>
+    <string name="sec_cloud">Облачная нейронка (Gemini)</string>
+    <string name="sec_local">Локальная модель (без интернета)</string>
+    <string name="hint_gemini_key">Ключ Gemini (для облачной генерации)</string>
+    <string name="hint_hf_token">Токен Hugging Face (для скачивания модели)</string>
+    <string name="btn_download_model">Скачать модель (3,66 ГБ) один раз</string>
+    <string name="btn_pick_model">Выбрать модель с устройства</string>
+    <string name="btn_save">Сохранить</string>
+    <string name="sec_local_desc">Скачай нейросеть на телефон один раз — и рецепты будут считаться без интернета.</string>
 </resources>

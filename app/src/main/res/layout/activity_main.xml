@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -9,21 +10,50 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#1B5E20"
-            android:text="@string/app_name" />
+            android:orientation="horizontal"
+            android:background="@drawable/bg_header"
+            android:gravity="center_vertical"
+            android:padding="14dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_launcher"
+                android:contentDescription="@string/app_name" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:text="@string/app_name"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnSettings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/btn_light"
+                android:textColor="#1B5E20"
+                android:textSize="13sp"
+                android:minHeight="40dp"
+                android:text="@string/btn_settings"
+                android:textAllCaps="false" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Сфотографируй холодильник или стол с продуктами — шеф-повар подскажет, что вкусного приготовить."
-            android:textSize="14sp" />
+            android:layout_marginTop="12dp"
+            android:text="@string/main_hint"
+            android:textSize="14sp"
+            android:textColor="#555555" />
 
         <ImageView
             android:id="@+id/ivPreview"
@@ -31,8 +61,9 @@
             android:layout_height="220dp"
             android:layout_marginTop="12dp"
             android:scaleType="centerCrop"
-            android:contentDescription="Фото продуктов"
-            android:background="@drawable/btn_secondary" />
+            android:padding="3dp"
+            android:background="@drawable/bg_card"
+            android:contentDescription="Фото продуктов" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -45,7 +76,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Снять фото"
+                android:text="@string/btn_camera"
                 android:background="@drawable/btn_primary"
                 android:textColor="#FFFFFF"
                 android:textAllCaps="false" />
@@ -59,8 +90,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Из галереи"
+                android:text="@string/btn_gallery"
                 android:background="@drawable/btn_secondary"
+                android:textColor="#1B5E20"
                 android:textAllCaps="false" />
         </LinearLayout>
 
@@ -69,8 +101,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Что приготовить?"
+            android:text="@string/btn_ask"
             android:textColor="#FFFFFF"
+            android:textSize="17sp"
             android:textAllCaps="false"
             android:background="@drawable/btn_primary" />
 
@@ -90,67 +123,26 @@
             android:padding="12dp"
             android:textSize="15sp"
             android:lineSpacingExtra="3dp"
-            android:background="@drawable/btn_secondary" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Локальная модель (рецепты без интернета)"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#1B5E20" />
-
-        <EditText
-            android:id="@+id/etToken"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:hint="Токен Hugging Face"
-            android:inputType="textVisiblePassword"
-            android:textSize="14sp" />
-
-        <EditText
-            android:id="@+id/etGeminiKey"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:hint="Ключ Gemini (для облачной генерации)"
-            android:inputType="textPassword"
-            android:textSize="14sp" />
+            android:background="@drawable/bg_card" />
 
         <Button
-            android:id="@+id/btnDownload"
+            android:id="@+id/btnSaveRecipe"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Скачать модель (3,66 ГБ) один раз"
-            android:textColor="#FFFFFF"
-            android:textAllCaps="false"
-            android:background="@drawable/btn_primary" />
-
-        <Button
-            android:id="@+id/btnPickModel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Выбрать модель с устройства (файл из Загрузок)"
-            android:textAllCaps="false"
-            android:background="@drawable/btn_secondary" />
-
-        <ProgressBar
-            android:id="@+id/pbModel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:text="@string/btn_save_recipe"
+            android:textColor="#1B5E20"
             android:visibility="gone"
-            style="?android:attr/progressBarStyleHorizontal" />
+            android:textAllCaps="false"
+            android:background="@drawable/btn_secondary" />
 
         <TextView
-            android:id="@+id/tvModelStatus"
+            android:id="@+id/tvMode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="13sp" />
+            android:layout_marginTop="14dp"
+            android:textSize="13sp"
+            android:textColor="#777777"
+            android:gravity="center_horizontal" />
     </LinearLayout>
 </ScrollView>

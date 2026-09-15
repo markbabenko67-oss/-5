@@ -16,7 +16,6 @@ import android.text.Html;
 import android.util.Base64;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -47,7 +46,6 @@ public class MainActivity extends Activity {
 
     private static final int REQ_CAMERA = 101;
     private static final int REQ_GALLERY = 102;
-    private static final int REQ_PICK_MODEL = 103;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -55,17 +53,14 @@ public class MainActivity extends Activity {
     private Button btnAsk;
     private ProgressBar progress;
     private TextView tvResult;
+    private TextView tvMode;
+    private Button btnSaveRecipe;
 
     private LocalChef localChef;
-    private EditText etToken;
-    private EditText etGeminiKey;
-    private Button btnDownload;
-    private Button btnPickModel;
-    private ProgressBar pbModel;
-    private TextView tvModelStatus;
 
     private Uri pendingPhotoUri;
     private byte[] imageBytes;
+    private String lastRecipeText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,28 +69,27 @@ public class MainActivity extends Activity {
 
         Button btnCamera = findViewById(R.id.btnCamera);
         Button btnGallery = findViewById(R.id.btnGallery);
+        Button btnSettings = findViewById(R.id.btnSettings);
         btnAsk = findViewById(R.id.btnAsk);
         ivPreview = findViewById(R.id.ivPreview);
         progress = findViewById(R.id.progress);
         tvResult = findViewById(R.id.tvResult);
-
-        etToken = findViewById(R.id.etToken);
-        etGeminiKey = findViewById(R.id.etGeminiKey);
-        btnDownload = findViewById(R.id.btnDownload);
-        btnPickModel = findViewById(R.id.btnPickModel);
-        pbModel = findViewById(R.id.pbModel);
-        tvModelStatus = findViewById(R.id.tvModelStatus);
+        tvMode = findViewById(R.id.tvMode);
+        btnSaveRecipe = findViewById(R.id.btnSaveRecipe);
 
         btnCamera.setOnClickListener(v -> launchCamera());
         btnGallery.setOnClickListener(v -> launchGallery());
         btnAsk.setOnClickListener(v -> askChef());
+        btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+        btnSaveRecipe.setOnClickListener(v -> saveRecipe());
 
         localChef = new LocalChef(this);
-        etToken.setText(loadPref("hf_token"));
-        etGeminiKey.setText(loadPref("gemini_key"));
-        btnDownload.setOnClickListener(v -> startModelDownload());
-        btnPickModel.setOnClickListener(v -> launchModelPicker());
-        updateModelStatus();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateMode();
     }
 
     private void launchCamera() {
@@ -130,9 +124,7 @@ public class MainActivity extends Activity {
         if (resultCode != RESULT_OK) return;
 
         try {
-            if (requestCode == REQ_PICK_MODEL && data != null && data.getData() != null) {
-                importModelFile(data.getData());
-            } else if (requestCode == REQ_CAMERA && pendingPhotoUri != null) {
+            if (requestCode == REQ_CAMERA && pendingPhotoUri != null) {
                 loadAndPreview(pendingPhotoUri, true);
             } else if (requestCode == REQ_GALLERY && data != null && data.getData() != null) {
                 loadAndPreview(data.getData(), false);
@@ -140,69 +132,6 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Toast.makeText(this, "Не удалось прочитать файл: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void launchModelPicker() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        try {
-            startActivityForResult(intent, REQ_PICK_MODEL);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "Не удалось открыть выбор файла", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void importModelFile(Uri uri) {
-        if (localChef.isModelPresent()) {
-            Toast.makeText(this, "Модель уже на месте", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        btnDownload.setEnabled(false);
-        btnPickModel.setEnabled(false);
-        pbModel.setVisibility(View.VISIBLE);
-        tvModelStatus.setText("Перенос файла модели на место. Подожди...");
-
-        localChef.importModel(uri, new LocalChef.ProgressListener() {
-            @Override
-            public void onProgress(long done, long total) {
-                runOnUiThread(() -> {
-                    if (total > 0) {
-                        pbModel.setMax(1000);
-                        pbModel.setProgress((int) (done * 1000 / total));
-                        tvModelStatus.setText(String.format(Locale.getDefault(),
-                                "Перенос: %d%% (%d из %d МБ)",
-                                done * 100 / total, done / (1024 * 1024), total / (1024 * 1024)));
-                    } else {
-                        tvModelStatus.setText(String.format(Locale.getDefault(),
-                                "Перенос: %d МБ...", done / (1024 * 1024)));
-                    }
-                });
-            }
-
-            @Override
-            public void onDone() {
-                runOnUiThread(() -> {
-                    pbModel.setVisibility(View.GONE);
-                    btnDownload.setEnabled(true);
-                    btnPickModel.setEnabled(true);
-                    updateModelStatus();
-                    Toast.makeText(MainActivity.this, "Модель установлена! Можно готовить без интернета.", Toast.LENGTH_LONG).show();
-                });
-            }
-
-            @Override
-            public void onError(String message) {
-                runOnUiThread(() -> {
-                    updateModelStatus();
-                    pbModel.setVisibility(View.GONE);
-                    btnDownload.setEnabled(true);
-                    btnPickModel.setEnabled(true);
-                    tvModelStatus.setText("Ошибка: " + message);
-                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
-                });
-            }
-        });
     }
 
     private void loadAndPreview(Uri uri, boolean fixOrientation) throws IOException {
@@ -286,11 +215,13 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 result = "Ошибка: " + e.getMessage();
             }
+            lastRecipeText = result;
             String finalResult = markdownToHtml(result);
             runOnUiThread(() -> {
                 progress.setVisibility(View.GONE);
                 btnAsk.setEnabled(true);
                 tvResult.setText(Html.fromHtml(finalResult, Html.FROM_HTML_MODE_LEGACY));
+                showSaveButton();
             });
         });
     }
@@ -309,7 +240,9 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
                     btnAsk.setEnabled(true);
+                    lastRecipeText = text;
                     tvResult.setText(Html.fromHtml(markdownToHtml(text), Html.FROM_HTML_MODE_LEGACY));
+                    showSaveButton();
                 });
             }
 
@@ -332,68 +265,54 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startModelDownload() {
-        String token = etToken.getText().toString().trim();
-        if (token.isEmpty()) {
-            Toast.makeText(this, "Вставь токен Hugging Face", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void updateMode() {
         if (localChef.isModelPresent()) {
-            Toast.makeText(this, "Модель уже скачана", Toast.LENGTH_SHORT).show();
-            return;
+            tvMode.setText("Режим: локальная модель — рецепты без интернета");
+        } else {
+            tvMode.setText("Режим: Gemini в интернете (ключ — в настройках)");
         }
-        long space = localChef.getUsableSpace();
-        tvModelStatus.setText(String.format(Locale.getDefault(),
-                "Свободно места: ~%d ГБ из %d МБ. Загрузка 3,66 ГБ, не закрывай приложение.",
-                space / (1024L * 1024 * 1024), LocalChef.MODEL_SIZE_BYTES / (1024L * 1024)));
-
-        savePref("hf_token", token);
-        btnDownload.setEnabled(false);
-        pbModel.setVisibility(View.VISIBLE);
-
-        localChef.downloadModel(token, new LocalChef.ProgressListener() {
-            @Override
-            public void onProgress(long done, long total) {
-                runOnUiThread(() -> {
-                    pbModel.setMax(1000);
-                    pbModel.setProgress((int) (done * 1000 / total));
-                    long pct = done * 100 / total;
-                    tvModelStatus.setText(String.format(Locale.getDefault(),
-                            "Скачано %d%% (%d из %d МБ)",
-                            pct, done / (1024 * 1024), total / (1024 * 1024)));
-                });
-            }
-
-            @Override
-            public void onDone() {
-                runOnUiThread(() -> {
-                    pbModel.setVisibility(View.GONE);
-                    btnDownload.setEnabled(true);
-                    updateModelStatus();
-                    Toast.makeText(MainActivity.this, "Локальная модель готова! Можно готовить без интернета.", Toast.LENGTH_LONG).show();
-                });
-            }
-
-            @Override
-            public void onError(String message) {
-                runOnUiThread(() -> {
-                    updateModelStatus();
-                    pbModel.setVisibility(View.GONE);
-                    btnDownload.setEnabled(true);
-                    tvModelStatus.setText("Ошибка: " + message);
-                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
-                });
-            }
-        });
     }
 
-    private void updateModelStatus() {
-        if (localChef.isModelPresent()) {
-            tvModelStatus.setText("Локальная модель: готова (рецепты считаются на телефоне, без интернета).");
-        } else if (localChef.isDownloading()) {
-            tvModelStatus.setText("Идёт загрузка локальной модели...");
-        } else {
-            tvModelStatus.setText("Локальная модель не скачана — сейчас рецепты считает Gemini через интернет.");
+    private void showSaveButton() {
+        btnSaveRecipe.setVisibility(
+                lastRecipeText != null && lastRecipeText.trim().length() > 0 ? View.VISIBLE : View.GONE);
+    }
+
+    private void saveRecipe() {
+        String text = lastRecipeText != null ? lastRecipeText : "";
+        if (text.trim().isEmpty()) {
+            Toast.makeText(this, "Сначала сгенерируй рецепт", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String filename = "рецепт_" + new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                .format(new java.util.Date()) + ".txt";
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                android.content.ContentValues cv = new android.content.ContentValues();
+                cv.put(MediaStore.Downloads.DISPLAY_NAME, filename);
+                cv.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
+                cv.put(MediaStore.Downloads.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/Холодильник-шеф");
+                Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri != null) {
+                    java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+                    if (os != null) {
+                        os.write(text.getBytes(StandardCharsets.UTF_8));
+                        os.close();
+                        Toast.makeText(this, "Рецепт сохранён в папку «Загрузки»", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                }
+            }
+            java.io.File dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+            if (dir == null) dir = getFilesDir();
+            java.io.File out = new File(dir, filename);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
+                fos.write(text.getBytes(StandardCharsets.UTF_8));
+            }
+            Toast.makeText(this, "Рецепт сохранён: " + out.getAbsolutePath(), Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Не удалось сохранить: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -408,11 +327,8 @@ public class MainActivity extends Activity {
     }
 
     private String geminiKey() {
-        String fromPref = etGeminiKey != null ? etGeminiKey.getText().toString().trim() : "";
-        if (!fromPref.isEmpty()) {
-            savePref("gemini_key", fromPref);
-            return fromPref;
-        }
+        String fromPref = loadPref("gemini_key").trim();
+        if (!fromPref.isEmpty()) return fromPref;
         return BuildConfig.GEMINI_API_KEY;
     }
 
